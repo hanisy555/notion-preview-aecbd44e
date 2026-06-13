@@ -1,0 +1,356 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script>
+(function(){
+  var __k="814be294-dfa8-41f8-b1fb-8035bf2a3d51";
+  var __a=null;
+  var __preload=null;
+  if(!__k)return;
+  var _f=window.fetch;
+  // S3 URL → file_key 추출 후 __a 매핑 lookup → assets/ 로컬 경로 치환
+  // 응답에 새 signed URL이 와도 같은 file_key면 같은 assets/ → 영구 작동
+  function patchUrls(data){
+    if(!__a)return data;
+    try{
+      var s=JSON.stringify(data);
+      // 응답 안의 모든 S3 URL을 정규식으로 찾고, file_key 추출 → 매핑 lookup
+      s=s.replace(/https:\/\/prod-files-secure\.s3\.amazonaws\.com\/[^"\s<>]+/g,function(url){
+        var m=url.match(/\.amazonaws\.com\/([^?\\]+)/);
+        if(!m)return url;
+        var key=m[1].replace(/\\u002F/g,"/");
+        return __a[key]||url;
+      });
+      return JSON.parse(s);
+    }catch(e){return data;}
+  }
+  function callMisiso(method,path,body){
+    return _f("https://misiso.com/api/notion/deploy-proxy",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({deployKey:__k,path:path,method:method,body:body})
+    }).then(function(r){
+      var status=r.status;
+      return r.json().then(function(data){return {status:status,data:patchUrls(data)};});
+    });
+  }
+  // preload pattern — 페이지 로드와 병렬로 정적 fetch 호출 미리 시작
+  var __preloadCache={};
+  if(__preload){
+    for(var i=0;i<__preload.length;i++){
+      (function(c){
+        var key=c.method+":"+c.path+":"+(c.body?JSON.stringify(c.body):"");
+        __preloadCache[key]=callMisiso(c.method,c.path,c.body);
+      })(__preload[i]);
+    }
+  }
+  window.fetch=function(url,opts){
+    var u=typeof url==="string"?url:String(url);
+    if(!u.startsWith("/api/notion/"))return _f.apply(this,arguments);
+    var path=u.slice("/api/notion".length);
+    var method=(opts&&opts.method)||"GET";
+    var body;
+    try{body=opts&&opts.body?JSON.parse(opts.body):undefined;}catch(e){body=opts&&opts.body;}
+    var ck=method+":"+path+":"+(body?JSON.stringify(body):"");
+    var promise=__preloadCache[ck];
+    if(promise){delete __preloadCache[ck];}
+    else{promise=callMisiso(method,path,body);}
+    return promise.then(function(res){
+      return new Response(JSON.stringify(res.data),{
+        status:res.status,
+        headers:{"Content-Type":"application/json"}
+      });
+    });
+  };
+})();
+</script>
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://misiso.com" crossorigin/>
+<meta property="og:title" content="포켓몬 뽑기"/>
+<meta property="og:description" content="포켓몬뽑기"/>
+<title>포켓몬 뽑기</title>
+<meta name="description" content="포켓몬뽑기"/>
+<meta property="og:image" content="https://hanisy555.github.io/notion-preview-aecbd44e/og-image-001b451b.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:image" content="https://hanisy555.github.io/notion-preview-aecbd44e/og-image-001b451b.png"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2032%2032'%3E%3Crect%20width%3D'32'%20height%3D'32'%20rx%3D'6'%20fill%3D'%2310b981'%2F%3E%3Ctext%20x%3D'16'%20y%3D'22'%20text-anchor%3D'middle'%20font-size%3D'18'%20fill%3D'white'%20font-family%3D'sans-serif'%3E%ED%8F%AC%3C%2Ftext%3E%3C%2Fsvg%3E"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+	--bg: #0b1220;
+	--panel: rgba(255, 255, 255, 0.06);
+	--panel-border: rgba(255, 255, 255, 0.12);
+	--text: rgba(255, 255, 255, 0.92);
+	--muted: rgba(255, 255, 255, 0.68);
+	--shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+	--red: #ef4444;
+	--red2: #b91c1c;
+	--blue: #3b82f6;
+	--green: #10b981;
+	--yellow: #fbbf24;
+	--line: rgba(255, 255, 255, 0.1);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+	margin: 0;
+	font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+	background:
+		radial-gradient(900px 500px at 15% 10%, rgba(59,130,246,0.28), transparent 60%),
+		radial-gradient(900px 500px at 85% 35%, rgba(239,68,68,0.22), transparent 55%),
+		radial-gradient(700px 500px at 50% 85%, rgba(16,185,129,0.20), transparent 55%),
+		var(--bg);
+	color: var(--text);
+}
+
+.app {
+	max-width: 980px;
+	margin: 0 auto;
+	padding: 28px 16px 48px;
+}
+
+.header { text-align: center; margin-bottom: 16px; }
+.title { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+.subtitle { margin: 8px 0 0; color: var(--muted); }
+
+.panel {
+	background: var(--panel);
+	border: 1px solid var(--panel-border);
+	box-shadow: var(--shadow);
+	border-radius: 18px;
+	padding: 18px;
+	margin-top: 14px;
+	backdrop-filter: blur(10px);
+}
+
+.section-title { margin: 0 0 6px; font-size: 16px; letter-spacing: -0.01em; }
+.help { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+.fav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+
+.fav-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 10px 12px;
+	border-radius: 14px;
+	border: 1px solid var(--line);
+	background: rgba(255,255,255,0.04);
+	color: var(--text);
+	cursor: pointer;
+	transition: transform .12s ease, border-color .12s ease, background .12s ease;
+	font-weight: 650;
+}
+
+.fav-btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); }
+.fav-btn.active { border-color: rgba(59,130,246,0.55); background: rgba(59,130,246,0.18); }
+
+.fav-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+.input {
+	flex: 1;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid var(--line);
+	background: rgba(0,0,0,0.28);
+	color: var(--text);
+	outline: none;
+}
+
+.input::placeholder { color: rgba(255,255,255,0.45); }
+
+.btn {
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid rgba(255,255,255,0.14);
+	background: rgba(255,255,255,0.08);
+	color: var(--text);
+	cursor: pointer;
+	transition: transform .12s ease, background .12s ease;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.11); }
+.btn:active { transform: translateY(0); }
+.btn-ghost { background: rgba(255,255,255,0.04); }
+
+.fav-selected {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.pill-label {
+	font-size: 12px;
+	color: rgba(255,255,255,0.72);
+	padding: 4px 8px;
+	border-radius: 999px;
+	border: 1px solid rgba(255,255,255,0.14);
+	background: rgba(0,0,0,0.18);
+}
+
+.pill-value { font-weight: 800; letter-spacing: -0.01em; }
+
+.ball-wrap { display: flex; justify-content: center; margin: 18px 0 8px; }
+
+.ball-btn {
+	width: 160px;
+	height: 160px;
+	border-radius: 999px;
+	border: 0;
+	background: transparent;
+	position: relative;
+	cursor: pointer;
+	filter: drop-shadow(0 12px 24px rgba(0,0,0,0.38));
+	transition: transform .12s ease;
+}
+
+.ball-btn:hover { transform: translateY(-2px); }
+.ball-btn:active { transform: translateY(0px) scale(0.98); }
+
+.ball-top, .ball-bot, .ball-mid, .ball-center { position: absolute; left: 0; top: 0; }
+
+.ball-top {
+	width: 100%;
+	height: 50%;
+	background: linear-gradient(180deg, var(--red) 0%, var(--red2) 100%);
+	border-top-left-radius: 999px;
+	border-top-right-radius: 999px;
+}
+
+.ball-bot {
+	top: 50%;
+	width: 100%;
+	height: 50%;
+	background: linear-gradient(180deg, #ffffff 0%, #e5e7eb 100%);
+	border-bottom-left-radius: 999px;
+	border-bottom-right-radius: 999px;
+}
+
+.ball-mid {
+	top: 50%;
+	transform: translateY(-10px);
+	width: 100%;
+	height: 20px;
+	background: #111827;
+}
+
+.ball-center {
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	background: #e5e7eb;
+	border: 8px solid #111827;
+	box-shadow: inset 0 0 0 3px rgba(0,0,0,0.18);
+}
+
+.status-row { display: grid; gap: 8px; justify-items: center; text-align: center; margin-top: 10px; }
+.status { color: rgba(255,255,255,0.82); font-weight: 650; }
+.cooldown { color: rgba(255,255,255,0.55); font-size: 12px; }
+
+.result-area { margin-top: 14px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+
+.card {
+	border: 1px solid rgba(255,255,255,0.12);
+	background: rgba(0,0,0,0.18);
+	border-radius: 16px;
+	padding: 14px;
+	display: grid;
+	gap: 6px;
+}
+
+.card .name { font-weight: 900; letter-spacing: -0.01em; }
+.card .meta { font-size: 12px; color: rgba(255,255,255,0.62); }
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 800;
+	border-radius: 999px;
+	padding: 6px 10px;
+	width: fit-content;
+	border: 1px solid rgba(255,255,255,0.14);
+	background: rgba(255,255,255,0.06);
+}
+
+.badge.good { border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.15); }
+.badge.rare { border-color: rgba(59,130,246,0.45); background: rgba(59,130,246,0.18); }
+.badge.ultra { border-color: rgba(251,191,36,0.45); background: rgba(251,191,36,0.18); }
+.badge.master { border-color: rgba(168,85,247,0.55); background: rgba(168,85,247,0.20); }
+
+.actions-row { display: flex; justify-content: center; margin-top: 14px; }
+.footer { text-align: center; margin-top: 14px; color: rgba(255,255,255,0.58); font-size: 12px; }
+</style>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>if(window.Babel)Babel.disableScriptTags=true;</script>
+</head><body><div id="root"></div>
+<rect width='32' height='32' rx='6' fill='%23ef4444'/><text x='16' y='22' text-anchor='middle' font-size='18' fill='white' font-family='sans-serif'>볼</text></svg>">
+
+<div class="app">
+	<header class="header">
+		<h1 class="title">몬스터볼 포켓몬 뽑기</h1>
+		<p class="subtitle">하루 1번! 몬스터볼을 눌러 포켓몬을 뽑아보세요.</p>
+	</header>
+
+	<section class="panel">
+		<h2 class="section-title">좋아하는 포켓몬 설정</h2>
+		<p class="help">좋아하는 포켓몬은 더 자주 등장해요.</p>
+
+		<div class="fav-grid" id="favGrid"></div>
+
+		<div class="fav-actions">
+			<input id="customFavInput" class="input" placeholder="직접 추가 (예: 피카츄)" maxlength="12">
+			<button id="addCustomFavBtn" class="btn btn-ghost" type="button">추가</button>
+		</div>
+
+		<div class="fav-selected">
+			<span class="pill-label">선택됨</span>
+			<span id="selectedFav" class="pill-value">피카츄</span>
+		</div>
+	</section>
+
+	<section class="panel">
+		<h2 class="section-title">오늘의 뽑기</h2>
+
+		<div class="ball-wrap">
+			<button id="drawBtn" class="ball-btn" type="button" aria-label="몬스터볼 누르기">
+				<span class="ball-top"></span>
+				<span class="ball-mid"></span>
+				<span class="ball-bot"></span>
+				<span class="ball-center"></span>
+			</button>
+		</div>
+
+		<div class="status-row">
+			<div id="statusMsg" class="status">아직 뽑지 않았어요. 몬스터볼을 눌러보세요!</div>
+			<div id="cooldownMsg" class="cooldown"></div>
+		</div>
+
+		<div id="resultArea" class="result-area"></div>
+
+		<div class="actions-row">
+			<button id="resetTodayBtn" class="btn btn-ghost" type="button">오늘 다시하기(테스트용)</button>
+		</div>
+	</section>
+
+	<footer class="footer">
+		<p class="footnote">※ “하루 1번”은 이 기기/브라우저 기준으로 저장됩니다.</p>
+	</footer>
+</div><script type="module">
+var __np_strip_imports=function(){return{visitor:{ImportDeclaration:function(path){var src=path.node.source.value;if(src.indexOf("./")===0||src.indexOf("../")===0)path.remove();},ExportDefaultDeclaration:function(path){var decl=path.node.declaration;if(decl.type==="FunctionDeclaration"||decl.type==="ClassDeclaration"){path.replaceWith(decl);}else{path.replaceWith({type:"VariableDeclaration",kind:"var",declarations:[{type:"VariableDeclarator",id:{type:"Identifier",name:"_default"},init:decl}]});}},ExportNamedDeclaration:function(path){if(path.node.declaration){path.replaceWith(path.node.declaration);}else{path.remove();}},ExportAllDeclaration:function(path){path.remove();}}};};
+var __np_dedupe_top_consts=function(){var _s={};return{visitor:{VariableDeclaration:function(p){if(p.parent.type!=="Program")return;if(p.node.kind!=="const"&&p.node.kind!=="let")return;var kept=[];for(var i=0;i<p.node.declarations.length;i++){var d=p.node.declarations[i];var n=d.id&&d.id.type==="Identifier"?d.id.name:null;if(n&&_s[n]){}else{if(n)_s[n]=true;kept.push(d);}}if(kept.length===0){p.remove();}else{p.node.declarations=kept;}}}}};
+var __np_jsx_decode=function(){function _d(v){v=v.replace(/\\u\{([0-9a-fA-F]+)\}/g,function(_,h){return String.fromCodePoint(parseInt(h,16));});v=v.replace(/\\u([0-9a-fA-F]{4})/g,function(_,h){return String.fromCharCode(parseInt(h,16));});return v;}return{visitor:{JSXText:function(p){p.node.value=_d(p.node.value);},StringLiteral:function(p){if(!p.parent||p.parent.type!=="JSXAttribute")return;p.node.value=_d(p.node.value);}}}};
+var __code="import React from 'https://esm.sh/react';\nimport ReactDOM from 'https://esm.sh/react-dom/client';\nimport { useEffect, useMemo, useState } from 'https://esm.sh/react';\n\nconst TZ = 'Asia/Seoul';\n\nconst DEFAULT_FAVORITES = [\n\t'피카츄',\n\t'이브이',\n\t'파이리',\n\t'꼬부기',\n\t'이상해씨',\n\t'잠만보',\n\t'뮤',\n\t'리자몽',\n];\n\nconst POKEMON_POOL = [\n\t'피카츄', '라이츄', '이브이', '부스터', '샤미드', '쥬피썬더',\n\t'파이리', '리자몽', '리자드',\n\t'꼬부기', '어니부기', '거북왕',\n\t'이상해씨', '이상해풀', '이상해꽃',\n\t'푸린', '푸크린',\n\t'고라파덕', '골덕',\n\t'꼬마돌', '데구리', '딱구리',\n\t'갸라도스', '잉어킹',\n\t'팬텀', '고우스트', '고오스',\n\t'잠만보',\n\t'뮤', '뮤츠',\n];\n\nfunction pad2(n) {\n\treturn String(n).padStart(2, '0');\n}\n\nfunction getTodayKeyKST() {\n\tconst now = new Date();\n\tconst parts = new Intl.DateTimeFormat('en-CA', {\n\t\ttimeZone: TZ,\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t}).formatToParts(now);\n\n\tconst y = parts.find(p => p.type === 'year')?.value || '1970';\n\tconst m = parts.find(p => p.type === 'month')?.value || '01';\n\tconst d = parts.find(p => p.type === 'day')?.value || '01';\n\treturn `${y}-${m}-${d}`;\n}\n\nfunction mulberry32(seed) {\n\tlet a = seed >>> 0;\n\treturn function rng() {\n\t\ta |= 0;\n\t\ta = (a + 0x6D2B79F5) | 0;\n\t\tlet t = Math.imul(a ^ (a >>> 15), 1 | a);\n\t\tt = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;\n\t\treturn ((t ^ (t >>> 14)) >>> 0) / 4294967296;\n\t};\n}\n\nfunction hashStringToUint32(str) {\n\tlet h = 2166136261;\n\tfor (let i = 0; i < str.length; i++) {\n\t\th ^= str.charCodeAt(i);\n\t\th = Math.imul(h, 16777619);\n\t}\n\treturn h >>> 0;\n}\n\nfunction pickWeighted(rng, items, favored, favoredBoost) {\n\tconst weights = items.map(name => (name === favored ? favoredBoost : 1));\n\tconst total = weights.reduce((a, b) => a + b, 0);\n\tlet r = rng() * total;\n\tfor (let i = 0; i < items.length; i++) {\n\t\tr -= weights[i];\n\t\tif (r <= 0) return items[i];\n\t}\n\treturn items[items.length - 1];\n}\n\nfunction rarityForCount(count) {\n\tif (count >= 10) return { label: '마스터볼급!', cls: 'master' };\n\tif (count >= 8) return { label: '울트라 레어!', cls: 'ultra' };\n\tif (count >= 6) return { label: '레어!', cls: 'rare' };\n\treturn { label: '굿!', cls: 'good' };\n}\n\nfunction timeUntilNextKSTMidnight() {\n\tconst now = new Date();\n\n\tconst nowKSTParts = new Intl.DateTimeFormat('en-CA', {\n\t\ttimeZone: TZ,\n\t\tyear: 'numeric',\n\t\tmonth: '2-digit',\n\t\tday: '2-digit',\n\t\thour: '2-digit',\n\t\tminute: '2-digit',\n\t\tsecond: '2-digit',\n\t\thour12: false,\n\t}).formatToParts(now);\n\n\tconst hh = Number(nowKSTParts.find(p => p.type === 'hour')?.value || '0');\n\tconst mm = Number(nowKSTParts.find(p => p.type === 'minute')?.value || '0');\n\tconst ss = Number(nowKSTParts.find(p => p.type === 'second')?.value || '0');\n\n\tconst nowSeconds = hh * 3600 + mm * 60 + ss;\n\tconst remain = 24 * 3600 - nowSeconds;\n\n\tconst r = Math.max(0, remain);\n\tconst rh = Math.floor(r / 3600);\n\tconst rm = Math.floor((r % 3600) / 60);\n\tconst rs = r % 60;\n\n\treturn `${pad2(rh)}:${pad2(rm)}:${pad2(rs)}`;\n}\n\nfunction loadJson(key, fallback) {\n\ttry {\n\t\tconst raw = localStorage.getItem(key);\n\t\tif (!raw) return fallback;\n\t\treturn JSON.parse(raw);\n\t} catch {\n\t\treturn fallback;\n\t}\n}\n\nfunction saveJson(key, value) {\n\tlocalStorage.setItem(key, JSON.stringify(value));\n}\n\nfunction App() {\n\tconst [favorites, setFavorites] = useState(() => {\n\t\tconst saved = loadJson('poke_favorites_v1', null);\n\t\treturn Array.isArray(saved) && saved.length > 0 ? saved : DEFAULT_FAVORITES;\n\t});\n\n\tconst [selectedFav, setSelectedFav] = useState(() => {\n\t\tconst saved = localStorage.getItem('poke_selected_fav_v1');\n\t\treturn saved || DEFAULT_FAVORITES[0];\n\t});\n\n\tconst todayKey = useMemo(() => getTodayKeyKST(), []);\n\n\tconst [drawState, setDrawState] = useState(() => {\n\t\treturn loadJson('poke_draw_state_v1', { dateKey: null, result: null });\n\t});\n\n\tconst alreadyDrewToday = drawState?.dateKey === todayKey && !!drawState?.result;\n\tconst result = alreadyDrewToday ? drawState.result : null;\n\tconst [statusMsg, setStatusMsg] = useState('아직 뽑지 않았어요. 몬스터볼을 눌러보세요!');\n\tconst [cooldownMsg, setCooldownMsg] = useState('');\n\n\tuseEffect(() => { saveJson('poke_favorites_v1', favorites); }, [favorites]);\n\tuseEffect(() => { localStorage.setItem('poke_selected_fav_v1', selectedFav); }, [selectedFav]);\n\n\tuseEffect(() => {\n\t\tsetStatusMsg(alreadyDrewToday ? '오늘의 뽑기는 완료! 내일 또 눌러보세요.' : '아직 뽑지 않았어요. 몬스터볼을 눌러보세요!');\n\t}, [alreadyDrewToday]);\n\n\tuseEffect(() => {\n\t\tconst timer = setInterval(() => {\n\t\t\tif (alreadyDrewToday) setCooldownMsg(`다음 뽑기까지 남은 시간: ${timeUntilNextKSTMidnight()}`);\n\t\t\telse setCooldownMsg('');\n\t\t}, 500);\n\t\treturn () => clearInterval(timer);\n\t}, [alreadyDrewToday]);\n\n\tfunction handleAddCustomFav() {\n\t\tconst input = document.getElementById('customFavInput');\n\t\tconst name = (input?.value || '').trim();\n\t\tif (!name) return;\n\t\tif (name.length > 12) return;\n\n\t\tsetFavorites(prev => {\n\t\t\tconst next = [...prev];\n\t\t\tif (!next.includes(name)) next.push(name);\n\t\t\treturn next;\n\t\t});\n\n\t\tsetSelectedFav(name);\n\t\tinput.value = '';\n\t}\n\n\tfunction handleDraw() {\n\t\tif (alreadyDrewToday) return;\n\n\t\tconst seed = hashStringToUint32(`${todayKey}|${selectedFav}`);\n\t\tconst rng = mulberry32(seed);\n\n\t\tconst count = 1 + Math.floor(rng() * 10);\n\t\tconst favoredBoost = 4;\n\n\t\tconst list = Array.from({ length: count }, () => pickWeighted(rng, POKEMON_POOL, selectedFav, favoredBoost));\n\n\t\tconst nextState = { dateKey: todayKey, result: { count, list, favored: selectedFav } };\n\t\tsaveJson('poke_draw_state_v1', nextState);\n\t\tsetDrawState(nextState);\n\t}\n\n\tfunction handleResetToday() {\n\t\tconst nextState = { dateKey: null, result: null };\n\t\tsaveJson('poke_draw_state_v1', nextState);\n\t\tsetDrawState(nextState);\n\t}\n\n\tconst rarity = result ? rarityForCount(result.count) : null;\n\n\treturn (\n\t\t<div>\n\t\t\t<FavoritesGrid favorites={favorites} selectedFav={selectedFav} onSelect={setSelectedFav} onAddCustom={handleAddCustomFav} />\n\t\t\t<DrawPanel\n\t\t\t\talreadyDrewToday={alreadyDrewToday}\n\t\t\t\tstatusMsg={statusMsg}\n\t\t\t\tcooldownMsg={cooldownMsg}\n\t\t\t\tonDraw={handleDraw}\n\t\t\t\tonResetToday={handleResetToday}\n\t\t\t\tresult={result}\n\t\t\t\trarity={rarity}\n\t\t\t/>\n\t\t</div>\n\t);\n}\n\nfunction FavoritesGrid({ favorites, selectedFav, onSelect, onAddCustom }) {\n\tuseEffect(() => {\n\t\tconst grid = document.getElementById('favGrid');\n\t\tif (!grid) return;\n\t\tgrid.innerHTML = '';\n\n\t\tfavorites.forEach(name => {\n\t\t\tconst btn = document.createElement('button');\n\t\t\tbtn.type = 'button';\n\t\t\tbtn.className = `fav-btn${name === selectedFav ? ' active' : ''}`;\n\t\t\tbtn.textContent = name;\n\t\t\tbtn.onclick = () => onSelect(name);\n\t\t\tgrid.appendChild(btn);\n\t\t});\n\n\t\tconst selected = document.getElementById('selectedFav');\n\t\tif (selected) selected.textContent = selectedFav;\n\n\t\tconst addBtn = document.getElementById('addCustomFavBtn');\n\t\tif (addBtn) addBtn.onclick = () => onAddCustom();\n\t}, [favorites, selectedFav, onSelect, onAddCustom]);\n\n\treturn null;\n}\n\nfunction DrawPanel({ alreadyDrewToday, statusMsg, cooldownMsg, onDraw, onResetToday, result, rarity }) {\n\tuseEffect(() => {\n\t\tconst drawBtn = document.getElementById('drawBtn');\n\t\tif (!drawBtn) return;\n\t\tdrawBtn.disabled = alreadyDrewToday;\n\t\tdrawBtn.onclick = () => onDraw();\n\n\t\tconst status = document.getElementById('statusMsg');\n\t\tif (status) status.textContent = statusMsg;\n\n\t\tconst cooldown = document.getElementById('cooldownMsg');\n\t\tif (cooldown) cooldown.textContent = cooldownMsg;\n\n\t\tconst resetBtn = document.getElementById('resetTodayBtn');\n\t\tif (resetBtn) resetBtn.onclick = () => onResetToday();\n\t}, [alreadyDrewToday, statusMsg, cooldownMsg, onDraw, onResetToday]);\n\n\tuseEffect(() => {\n\t\tconst area = document.getElementById('resultArea');\n\t\tif (!area) return;\n\t\tarea.innerHTML = '';\n\t\tif (!result) return;\n\n\t\tconst headerCard = document.createElement('div');\n\t\theaderCard.className = 'card';\n\n\t\tconst name = document.createElement('div');\n\t\tname.className = 'name';\n\t\tname.textContent = `오늘은 ${result.count}마리 등장!`;\n\n\t\tconst meta = document.createElement('div');\n\t\tmeta.className = 'meta';\n\t\tmeta.textContent = `좋아하는 포켓몬: ${result.favored}`;\n\n\t\tconst badge = document.createElement('div');\n\t\tbadge.className = `badge ${rarity?.cls || 'good'}`;\n\t\tbadge.textContent = rarity?.label || '굿!';\n\n\t\theaderCard.appendChild(name);\n\t\theaderCard.appendChild(meta);\n\t\theaderCard.appendChild(badge);\n\t\tarea.appendChild(headerCard);\n\n\t\tresult.list.forEach((p, idx) => {\n\t\t\tconst card = document.createElement('div');\n\t\t\tcard.className = 'card';\n\n\t\t\tconst title = document.createElement('div');\n\t\t\ttitle.className = 'name';\n\t\t\ttitle.textContent = `#${idx + 1} ${p}`;\n\n\t\t\tconst meta2 = document.createElement('div');\n\t\t\tmeta2.className = 'meta';\n\t\t\tmeta2.textContent = '몬스터볼에서 튀어나왔다!';\n\n\t\t\tcard.appendChild(title);\n\t\t\tcard.appendChild(meta2);\n\t\t\tarea.appendChild(card);\n\t\t});\n\t}, [result, rarity]);\n\n\treturn null;\n}\n\nReactDOM.createRoot(document.getElementById('root')).render(<App />);";
+try{var __result=Babel.transform(__code,{filename:"app.tsx",presets:["react","typescript"],plugins:[__np_strip_imports,__np_dedupe_top_consts,__np_jsx_decode],generatorOpts:{jsescOption:{minimal:true}},sourceType:"module"});try{var __s=document.createElement("script");__s.type="module";__s.textContent=__result.code;document.head.appendChild(__s);}catch(runErr){console.error("[user code runtime] "+(runErr.message||runErr)+"\n"+(runErr.stack||""));}}catch(transErr){var lm=(transErr.message||"").match(/\((\d+):(\d+)\)/);var ln=lm?parseInt(lm[1],10):0;var cx="";if(ln>0){var ls=__code.split("\n");var s=Math.max(0,ln-3),e=Math.min(ls.length,ln+2);cx="\n--- 사용자 코드 주변 ---\n"+ls.slice(s,e).map(function(l,i){return (s+i+1)+": "+l;}).join("\n");}console.error("[Babel transform 실패] "+(transErr.message||transErr)+cx);}
+</script>
+</body></html>
